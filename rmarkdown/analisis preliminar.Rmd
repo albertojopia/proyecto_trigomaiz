@@ -19,10 +19,12 @@ library(leaflet)
 library(plotly)
 
 # leer datos
-ruta.datos<-"../datos"
+ruta.datos<-"D:/Alberto/HEMERA/PROYECTO/TERRENO/proyecto_trigomaiz_git/datos/estacion"
+ruta.biomasa<-"D:/Alberto/HEMERA/PROYECTO/TERRENO/proyecto_trigomaiz_git/datos/biomasa"
+#ruta.datos<-"datos/estacion"
+#ruta.biomasa<-"datos/biomasa"
 
 ```
-
 
 
 Analisis prelimirar de datos de terreno en huertos de trigo y maiz de la localidad de villa baviera:
@@ -49,8 +51,8 @@ datos.est.maiz %>%
 # son muchos nombres, puertos y sensores, asi que separare los datos por puerto
 puerto1<-puerto[, c(1:3, 6:11, 14:16)]  
 puerto2<-puerto[,c(1,17:19)]  
-puerto3<-puerto[,c(1,20:22)] 
-puerto4<-puerto[,c(1,23:25)] 
+puerto3<-puerto[,c(1,20:22)]; colnames(puerto3)<-colnames(puerto2) 
+puerto4<-puerto[,c(1,23:25)]; colnames(puerto4)<-colnames(puerto2)  
 puerto8<-puerto[,c(1,28:29)] 
   
 puerto1 %>% mutate(puerto="puerto1") %>%
@@ -84,58 +86,40 @@ leaflet() %>%
 ```
 
 
-## Distribuciones {.tabset}
+## Distribucion Estacion {.tabset}
 
 Comparación de las distribuciones de las variables de la estacion metereologicas ATMOS (puerto 1) y los sendores de humedad (puerto 2, 3 y 4)
 
-### Puerto1
+### Meteorologia
 
+#### Maiz
 ```{r, echo=FALSE, warning=FALSE,fig.width=10 }
 puertos %>% 
   filter(puerto=="puerto1")%>%
-  ggplot(.,aes(variables,valor)) + 
-  geom_boxplot()+
+  ggplot(.,aes(valor)) + 
+  geom_histogram()+
   facet_wrap(~variables, scale="free")+
   theme_minimal()
 ```
 
-### Puerto2
+### Humedad de suelo
 
-```{r, echo=FALSE, warning=FALSE,fig.width=10 }
+#### Maiz
+```{r, echo=FALSE, warning=FALSE,message=FALSE,fig.width=10 }
 puertos %>% 
-  filter(puerto=="puerto2")%>%
-  ggplot(.,aes(variables,valor)) + 
-  geom_boxplot()+
+  filter(puerto %in% c("puerto2", "puerto3", "puerto4"))%>%
+  ggplot(.,aes(puerto,valor, fill=puerto)) + 
+  geom_violin()+
   facet_wrap(~variables, scale="free")+
   theme_minimal()
-```
 
-### Puerto3
-
-```{r, echo=FALSE, warning=FALSE,fig.width=10 }
-puertos %>% 
-  filter(puerto=="puerto3")%>% 
-  ggplot(.,aes(variables,valor)) + 
-  geom_boxplot()+
-  facet_wrap(~variables, scale="free")+
-  theme_minimal()
-```
-
-### Puerto4
-
-```{r, echo=FALSE, warning=FALSE,fig.width=10 }
-puertos %>% 
-  filter(puerto=="puerto4")%>% 
-  ggplot(.,aes(variables,valor)) + 
-  geom_boxplot()+
-  facet_wrap(~variables, scale="free")+
-  theme_minimal()
 ```
 
 
-## Series temporales {.tabset}
 
-### Puerto1
+## Serie temporal Estacion {.tabset}
+
+### Meteorologia
 
 ```{r, echo=FALSE, warning=FALSE,fig.width=9, fig.height=15 }
 puertos %>% 
@@ -149,12 +133,13 @@ puertos %>%
 
 ```
 
-### Puerto2
+### Humedad de Suelo
 
+#### Maiz
 ```{r, echo=FALSE, warning=FALSE,fig.width=9 }
 puertos %>% 
-  filter(puerto=="puerto2")%>%
-  ggplot(.,aes(Timestamps ,valor)) + 
+  filter(puerto %in% c("puerto2", "puerto3", "puerto4"))%>%
+  ggplot(.,aes(Timestamps ,valor, color=puerto)) + 
   geom_line()+
   facet_wrap(~variables, scale="free", ncol = 1)+
   theme_minimal()->p2
@@ -163,32 +148,61 @@ puertos %>%
 
 ```
 
-### Puerto3
 
-```{r, echo=FALSE, warning=FALSE,fig.width=9 }
-puertos %>% 
-  filter(puerto=="puerto3")%>%
-  ggplot(.,aes(Timestamps ,valor)) + 
-  geom_line()+
-  facet_wrap(~variables, scale="free", ncol = 1)+
-  theme_minimal()->p3
-  p3<- ggplotly(p3)
-  p3
 
-```
+```{r biomasa, include=FALSE}
+dir(ruta.biomasa, full.names = T, pattern ="maiz") %>%
+  read.csv(., sep=";", dec=".")%>%
+  as_tibble() %>%
+  mutate(fecha=dmy(fecha))->datos.bio.maiz
 
-### Puerto4
-
-```{r, echo=FALSE, warning=FALSE,fig.width=9 }
-puertos %>% 
-  filter(puerto=="puerto4")%>%
-  ggplot(.,aes(Timestamps ,valor)) + 
-  geom_line()+
-  facet_wrap(~variables, scale="free", ncol = 1)+
-  theme_minimal()->p4
-  p4<- ggplotly(p4)
-  p4
-
+dir(ruta.biomasa, full.names = T, pattern ="trigo") %>%
+  read.csv(., sep=";", dec=".")%>%
+  as_tibble() %>%
+  mutate(fecha=dmy(fecha))->datos.bio.trigo
 ```
 
 
+## Distribucion Biomasa {.tabset}
+
+### Maiz
+```{r, echo=FALSE}
+datos.bio.maiz %>%
+  ggplot(.,aes(estructura,peso)) + 
+  geom_boxplot()+
+  facet_wrap(~fecha, scale="free_y")+
+  theme_minimal()
+```
+
+### Trigo
+```{r, echo=FALSE}
+datos.bio.trigo %>%
+  filter(estructura!="grano") %>%
+  ggplot(.,aes(estructura,peso)) + 
+  geom_boxplot()+
+  facet_wrap(~fecha, scale="free_y")+
+  theme_minimal()
+```
+
+
+## Serie temporal Biomasa {.tabset}
+
+### Maiz
+```{r, echo=FALSE}
+datos.bio.maiz %>%
+  ggplot(.,aes(fecha,peso, fill=as.factor(muestra))) + 
+  geom_col(position = "dodge")+
+  facet_wrap(~estructura, ncol=1, scale="free_y")+
+  theme_minimal()
+
+```
+
+### Trigo
+```{r, echo=FALSE}
+datos.bio.trigo %>%
+  filter(estructura!="grano") %>%
+  ggplot(.,aes(fecha,peso, fill=as.factor(muestra))) + 
+  geom_col(position = "dodge")+
+  facet_wrap(~estructura, ncol=1, scale="free_y")+
+  theme_minimal()
+```

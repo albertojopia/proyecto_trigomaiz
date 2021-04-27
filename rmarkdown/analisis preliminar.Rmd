@@ -38,37 +38,45 @@ Analisis prelimirar de datos de terreno en huertos de trigo y maiz de la localid
 
 
 ```{r leer datos, include=FALSE}
-dir(ruta.datos, full.names = T) %>%
+dir(ruta.datos, full.names = T, pattern = "trigo") %>%
   read.csv(., sep=",", dec=".", skip = 2)%>%
-  as_tibble()->datos.est.maiz
+  as_tibble() %>%
+  mutate(cultivo="trigo")->datos.est.trigo
 
-names(datos.est.maiz)
+
+dir(ruta.datos, full.names = T,  pattern = "maiz") %>%
+  read.csv(., sep=",", dec=".", skip = 2)%>%
+  as_tibble()%>%
+  mutate(cultivo="maiz")->datos.est.maiz
+
+bind_rows(datos.est.trigo,datos.est.maiz) %>% 
+  mutate(Timestamps=ymd_hms(Timestamps))->datos.estaciones 
+
+
+names(datos.estaciones)
 #4,5,12,13, 26, 27
 
-datos.est.maiz %>% 
-  mutate(Timestamps=ymd_hms(Timestamps))->puerto
-
 # son muchos nombres, puertos y sensores, asi que separare los datos por puerto
-puerto1<-puerto[, c(1:3, 6:11, 14:16)]  
-puerto2<-puerto[,c(1,17:19)]  
-puerto3<-puerto[,c(1,20:22)]; colnames(puerto3)<-colnames(puerto2) 
-puerto4<-puerto[,c(1,23:25)]; colnames(puerto4)<-colnames(puerto2)  
-puerto8<-puerto[,c(1,28:29)] 
+puerto1<-datos.estaciones[, c(1:3, 6:11, 15:16, 30)]  
+puerto2<-datos.estaciones[,c(1,17:19, 30)]  
+puerto3<-datos.estaciones[,c(1,20:22, 30)]; colnames(puerto3)<-colnames(puerto2) 
+puerto4<-datos.estaciones[,c(1,23:25, 30)]; colnames(puerto4)<-colnames(puerto2)  
+puerto8<-datos.estaciones[,c(1,28:29, 30)] 
   
 puerto1 %>% mutate(puerto="puerto1") %>%
-  gather(variables, valor, -Timestamps, -puerto)->puerto1
+  gather(variables, valor, -Timestamps, -puerto, -cultivo)->puerto1
 
 puerto2 %>% mutate(puerto="puerto2") %>%
-  gather(variables, valor, -Timestamps, -puerto)->puerto2
+  gather(variables, valor, -Timestamps, -puerto, -cultivo)->puerto2
 
 puerto3 %>% mutate(puerto="puerto3") %>%
-  gather(variables, valor, -Timestamps, -puerto)->puerto3
+  gather(variables, valor, -Timestamps, -puerto, -cultivo)->puerto3
 
 puerto4 %>% mutate(puerto="puerto4") %>%
-  gather(variables, valor, -Timestamps, -puerto)->puerto4
+  gather(variables, valor, -Timestamps, -puerto, -cultivo)->puerto4
 
 puerto8 %>% mutate(puerto="puerto8") %>%
-  gather(variables, valor, -Timestamps, -puerto)->puerto8
+  gather(variables, valor, -Timestamps, -puerto, -cultivo)->puerto8
 
 bind_rows(puerto1,puerto2,puerto3,puerto4,puerto8)->puertos
 
@@ -88,66 +96,117 @@ leaflet() %>%
 
 ## Distribucion Estacion {.tabset}
 
-Comparación de las distribuciones de las variables de la estacion metereologicas ATMOS (puerto 1) y los sendores de humedad (puerto 2, 3 y 4)
+Comparación de las distribuciones de las variables de la estacion metereologicas ATMOS (puerto 1) y los sensores de humedad (puerto 2, 3 y 4)
 
-### Meteorologia
+### Meteorologia 
 
-#### Maiz
-```{r, echo=FALSE, warning=FALSE,fig.width=10 }
+```{r, echo=FALSE, warning=FALSE,message=FALSE,fig.width=10 }
 puertos %>% 
+  #filter(cultivo=="maiz") %>%
   filter(puerto=="puerto1")%>%
-  ggplot(.,aes(valor)) + 
+  ggplot(.,aes(valor, fill=cultivo)) + 
   geom_histogram()+
   facet_wrap(~variables, scale="free")+
   theme_minimal()
 ```
 
-### Humedad de suelo
 
-#### Maiz
+### Humedad de suelo {.tabset}
+
 ```{r, echo=FALSE, warning=FALSE,message=FALSE,fig.width=10 }
 puertos %>% 
+  #filter(cultivo=="maiz") %>%
   filter(puerto %in% c("puerto2", "puerto3", "puerto4"))%>%
-  ggplot(.,aes(puerto,valor, fill=puerto)) + 
-  geom_violin()+
-  facet_wrap(~variables, scale="free")+
+  ggplot(.,aes(puerto,valor, fill=cultivo)) + 
+  geom_boxplot()+
+  facet_wrap(~variables, scale="free", ncol=3)+
   theme_minimal()
 
 ```
 
 
-
 ## Serie temporal Estacion {.tabset}
 
-### Meteorologia
+### Meteorologia {.tabset}
 
-```{r, echo=FALSE, warning=FALSE,fig.width=9, fig.height=15 }
+#### Maiz
+```{r, echo=FALSE, warning=FALSE,fig.width=9, fig.height=18 }
 puertos %>% 
+  filter(puerto %in% c("puerto1"))%>%
+  .$Timestamps %>% range()->rango.tiempo0
+
+puertos %>% 
+  filter(cultivo=="maiz") %>%
   filter(puerto=="puerto1")%>%
   ggplot(.,aes(Timestamps ,valor)) + 
   geom_line()+
   facet_wrap(~variables, scale="free", ncol = 1)+
-  theme_minimal()->p
-  p<- ggplotly(p)
-  p
+  xlim(rango.tiempo0)+
+  theme_minimal()->pm
+  pm<- ggplotly(pm)
+  pm
 
 ```
 
-### Humedad de Suelo
+#### Trigo
+```{r, echo=FALSE, warning=FALSE,fig.width=9, fig.height=18 }
+puertos %>% 
+  filter(cultivo=="trigo") %>%
+  filter(puerto=="puerto1")%>%
+  ggplot(.,aes(Timestamps ,valor)) + 
+  geom_line()+
+  facet_wrap(~variables, scale="free", ncol = 1)+
+  xlim(rango.tiempo0)+
+  theme_minimal()->pt
+  pt<- ggplotly(pt)
+  pt
+
+```
+
+
+### Humedad de Suelo {.tabset}
 
 #### Maiz
-```{r, echo=FALSE, warning=FALSE,fig.width=9 }
+```{r, echo=FALSE, warning=FALSE,fig.width=9, fig.height=9 }
 puertos %>% 
+  filter(puerto %in% c("puerto2", "puerto3", "puerto4"))%>%
+  .$Timestamps %>% range()->rango.tiempo
+
+blank_data <- tibble(variables = c("m3.m3.Water.Content", "m3.m3.Water.Content", "degree_C.Soil.Temperature", "degree_C.Soil.Temperature", "mS.cm.Saturation.Extract.EC",
+"mS.cm.Saturation.Extract.EC"), x = rango.tiempo[1], y = c(0.1, 0.5,10, 30, 0.1, 0.8))
+
+blank_data2<- rbind(mutate(blank_data, puerto="puerto2"), 
+               mutate(blank_data, puerto="puerto3"), 
+               mutate(blank_data, puerto="puerto4"))
+
+puertos %>% 
+  filter(cultivo=="maiz") %>%
   filter(puerto %in% c("puerto2", "puerto3", "puerto4"))%>%
   ggplot(.,aes(Timestamps ,valor, color=puerto)) + 
   geom_line()+
-  facet_wrap(~variables, scale="free", ncol = 1)+
-  theme_minimal()->p2
-  p2<- ggplotly(p2)
-  p2
+  geom_blank(data = blank_data2, aes(x = x, y = y)) + facet_wrap(~variables, scales = "free_y", ncol = 1)+
+  xlim(rango.tiempo)+
+  theme_minimal()->p2m
+  p2m<- ggplotly(p2m)
+  p2m
 
+  
 ```
 
+#### Trigo
+```{r, echo=FALSE, warning=FALSE,fig.width=9, fig.height=9 }
+puertos %>% 
+   filter(cultivo=="trigo") %>%
+  filter(puerto %in% c("puerto2", "puerto3", "puerto4"))%>%
+  ggplot(.,aes(Timestamps ,valor, color=puerto)) + 
+  geom_line()+
+  geom_blank(data = blank_data2, aes(x = x, y = y)) + facet_wrap(~variables, scales = "free_y", ncol = 1)+
+  xlim(rango.tiempo)+
+  theme_minimal()->p2t
+  p2t<- ggplotly(p2t)
+  p2t
+
+```
 
 
 ```{r biomasa, include=FALSE}
@@ -166,21 +225,20 @@ dir(ruta.biomasa, full.names = T, pattern ="trigo") %>%
 ## Distribucion Biomasa {.tabset}
 
 ### Maiz
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 datos.bio.maiz %>%
-  ggplot(.,aes(estructura,peso)) + 
+  ggplot(.,aes(estructura,peso, fill=estructura)) + 
   geom_boxplot()+
-  facet_wrap(~fecha, scale="free_y")+
+  ylim(0,500)+
   theme_minimal()
 ```
 
 ### Trigo
 ```{r, echo=FALSE}
 datos.bio.trigo %>%
-  filter(estructura!="grano") %>%
-  ggplot(.,aes(estructura,peso)) + 
+  ggplot(.,aes(estructura,peso, fill=estructura)) + 
   geom_boxplot()+
-  facet_wrap(~fecha, scale="free_y")+
+  ylim(0,500)+
   theme_minimal()
 ```
 
@@ -188,21 +246,20 @@ datos.bio.trigo %>%
 ## Serie temporal Biomasa {.tabset}
 
 ### Maiz
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 datos.bio.maiz %>%
-  ggplot(.,aes(fecha,peso, fill=as.factor(muestra))) + 
+  ggplot(.,aes(fecha,peso, fill=estructura)) + 
   geom_col(position = "dodge")+
-  facet_wrap(~estructura, ncol=1, scale="free_y")+
+  ylim(0,500)+
   theme_minimal()
 
 ```
 
 ### Trigo
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 datos.bio.trigo %>%
-  filter(estructura!="grano") %>%
-  ggplot(.,aes(fecha,peso, fill=as.factor(muestra))) + 
-  geom_col(position = "dodge")+
-  facet_wrap(~estructura, ncol=1, scale="free_y")+
-  theme_minimal()
+    ggplot(.,aes(fecha,peso, fill=estructura)) + 
+    geom_col(position = "dodge")+
+    ylim(0,500)+
+    theme_minimal()
 ```
